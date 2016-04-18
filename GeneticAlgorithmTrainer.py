@@ -15,14 +15,14 @@ class AlgorithmChromosome():
         self.operator_chromosome = op_ch
 
     def __str__(self):
-        return "w: {} \no: {}________________".format(self.weight_chromosome.chromosome, self.operator_chromosome.chromosome)
+        return "w: {} \no: {}\n________________".format(self.weight_chromosome.chromosome, self.operator_chromosome.chromosome)
 
     def mutate(self):
         vary = uniform(-5, 5)
         w_i = randint(0, len(self.weight_chromosome.chromosome) - 1)
         o_i = randint(0, len(self.operator_chromosome.chromosome) - 1)
         self.weight_chromosome.chromosome[w_i] += vary
-        self.operator_chromosome.chromosome[o_i] += vary
+        self.operator_chromosome.chromosome[o_i] ^= 1
         return self
 
     @staticmethod
