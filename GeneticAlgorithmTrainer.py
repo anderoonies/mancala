@@ -1,3 +1,4 @@
+
 """Genetic Algorithmn Implementation
 see:
 http://www.obitko.com/tutorials/genetic-algorithms/ga-basic-description.php
@@ -5,8 +6,10 @@ http://www.obitko.com/tutorials/genetic-algorithms/ga-basic-description.php
 
 from random import uniform, getrandbits, randint
 from functools import partial
+import sys
+import pdb
 
-from MancalaBoard import *
+# from MancalaBoard import *
 from Player import *
 
 class AlgorithmChromosome():
@@ -15,10 +18,10 @@ class AlgorithmChromosome():
         self.operator_chromosome = op_ch
 
     def __str__(self):
-        return "w: {} \no: {}\n________________".format(self.weight_chromosome.chromosome, self.operator_chromosome.chromosome)
+        return "{} {}\n".format(self.weight_chromosome.chromosome, self.operator_chromosome.chromosome)
 
     def mutate(self):
-        vary = uniform(-5, 5)
+        vary = uniform(-2, 2)
         w_i = randint(0, len(self.weight_chromosome.chromosome) - 1)
         o_i = randint(0, len(self.operator_chromosome.chromosome) - 1)
         self.weight_chromosome.chromosome[w_i] += vary
@@ -76,17 +79,17 @@ class OperatorChromosome():
     def __init__(self, n_operators):
         self.chromosome = []
         for i in xrange(n_operators):
-            self.chromosome += self.random_gene(3)
+            self.chromosome += self.random_gene(1)
 
         self.encoding = {
-            '[0, 0, 0]': '+',
-            '[0, 0, 1]': '-',
-            '[0, 1, 0]': '*',
-            '[0, 1, 1]': '+',
-            '[1, 0, 0]': '-',
-            '[1, 0, 1]': '+',
-            '[1, 1, 0]': '*',
-            '[1, 1, 1]': '+',
+            '0': '+',
+            '1': '-',
+            # '[0, 1, 0]': '*',
+            # '[0, 1, 1]': '+',
+            # '[1, 0, 0]': '-',
+            # '[1, 0, 1]': '+',
+            # '[1, 1, 0]': '*',
+            # '[1, 1, 1]': '+',
         }
 
     def random_gene(self, n_bits):
@@ -94,8 +97,8 @@ class OperatorChromosome():
 
     def chromosome_to_operators(self):
         operators = []
-        for i in xrange(0, len(self.chromosome), 3):
-            operators.append(self.encoding[str(self.chromosome[i:i+3])])
+        for i in xrange(0, len(self.chromosome)):
+            operators.append(self.encoding[str(self.chromosome[i])])
         return operators
 
 
@@ -108,8 +111,10 @@ class GeneticAlgorithm(object):
         population = self.genetics.initial()
         n = 0
         while n < n_iterations:
+            print "Population interation {}".format(n)
             n += 1
-            fits_pop = [(self.genetics.fitness(alg_chromo), alg_chromo) for alg_chromo in population]
+            fits_pop = [(self.genetics.fitness(population[i], population[i+1]), population[i]) for i in xrange(len(population) - 1)]
+            if self.genetics.check_stop(fits_pop): break
             population = self.next(fits_pop)
         return population
 
@@ -178,7 +183,7 @@ class GeneticFunctions(object):
 
 
 class TrainHeuristic(GeneticFunctions):
-    def __init__(self, limit=200, size=400,
+    def __init__(self, limit=200, size=100,
                  prob_crossover=0.9, prob_mutation=0.2):
         # self.target = self.al(target_text)
         self.counter = 0
@@ -197,15 +202,19 @@ class TrainHeuristic(GeneticFunctions):
 
     def initial(self):
         return [AlgorithmChromosome(
-                    (WeightChromosome(14, 20)),
-                    OperatorChromosome(13)
+                    (WeightChromosome(7, 10)),
+                    OperatorChromosome(6)
                 ) for i in xrange(self.size)]
 
-    def fitness(self, alg_chromo, ngames = 200):
+    def fitness(self, p1_chromo, p2_chromo = None, ngames = 50):
+        player1 = arb495(1, Player.ABPRUNE, 2)
+        player1.score = player1.custom_score(p1_chromo)
 
-        player1 = arb495(1, Player.MINIMAX)
-        player1.score = player1.custom_score(alg_chromo)
-        player2 = Player(2, Player.RANDOM)
+        if p2_chromo:
+            player2 = arb495(2, Player.ABPRUNE, 2)
+            player2.score = player2.custom_score(p2_chromo)
+        else:
+            player2 = Player(2, Player.RANDOM)
 
         # play some games!
         board = MancalaBoard()
@@ -215,12 +224,10 @@ class TrainHeuristic(GeneticFunctions):
             n += 1
 
             board.hostGame(player1, player2)
-
             if board.hasWon(1):
                 wins += 1.0
             board.reset()
 
-        print "Fitness: {}".format(wins/ngames)
         return wins/ngames
 
     def check_stop(self, fits_populations):
@@ -232,9 +239,9 @@ class TrainHeuristic(GeneticFunctions):
             worst = min(fits)
             ave = sum(fits) / len(fits)
             print(
-                "[G %3d] score=(%4d, %4d, %4d): %r" %
-                (self.counter, best, ave, worst,
-                 self.chromo2text(best_match)))
+                "[G {}] score=({}, {}, {}): {}".format(
+                    self.counter, best, ave, worst, best_match)
+                )
             pass
         return self.counter >= self.limit
 
@@ -257,7 +264,7 @@ class TrainHeuristic(GeneticFunctions):
     def tournament(self, fits_populations):
         alicef, alice = self.select_random(fits_populations)
         bobf, bob = self.select_random(fits_populations)
-        print "In tournament between {} ({}) and {} ({})".format(alice, alicef, bob, bobf)
+        # print "In tournament between {} ({}) and {} ({})".format(alice, alicef, bob, bobf)
         return alice if alicef > bobf else bob
 
     def select_random(self, fits_populations):

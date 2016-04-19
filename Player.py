@@ -7,11 +7,13 @@
 # a subclass of the Player class.
 
 import itertools
+import pdb
 
 from random import *
 from decimal import *
 from copy import *
 from MancalaBoard import *
+
 # a constant
 INFINITY = 1.0e400
 
@@ -138,7 +140,6 @@ class Player:
         turn = self
 
         for m in board.legalMoves(self):
-            print "Thinking about {}, with alpha = {} and beta = {}".format(m, alpha, beta)
             if ply == 0:
                 # return a tuple of the move and the score for it
                 return (self.score(board), m)
@@ -150,16 +151,14 @@ class Player:
             opponent = Player(self.opp, self.type, self.ply)
             # check opponent's next move
             m_score = opponent.minAlphaBetaValue(next_board, ply - 1, turn, alpha, beta)
-            print "That would have a score of {}".format(m_score)
             if m_score > score:
-                print "My current move was {}, so I'm updating".format(score)
+                print "Chose move with score {} over {}".format(m_score, score)
                 # update current move if it's favorable
                 move = m
                 score = m_score
 
             # update alpha for next children
             alpha = max(score, alpha)
-            print "---------------------"
         return score, move
 
     def maxAlphaBetaValue(self, board, ply, turn, alpha, beta):
@@ -179,7 +178,6 @@ class Player:
             score = max(score, opponent.minAlphaBetaValue(nextBoard, ply - 1, turn, alpha, beta))
             # pruning condition: if the score is higher than beta value, there's nothing we can do
             if score >= beta:
-                print "Pruning a path with value {}, beta of {}".format(score, beta)
                 return score
             # update alpha for other children
             alpha = max(alpha, score)
@@ -202,7 +200,6 @@ class Player:
             score = min(score, opponent.maxAlphaBetaValue(nextBoard, ply - 1, turn, alpha, beta))
             # pruning condition: if the score is lower than the alpha condition, there's nothing we can do
             if score <= alpha:
-                print "Pruning a path with value {}, alpha of {}".format(score, alpha)
                 return score
             # update beta for other children
             beta = min(beta, score)
@@ -234,9 +231,7 @@ class Player:
             # function.  You may use whatever search algorithm and scoring
             # algorithm you like.  Remember that your player must make
             # each move in about 10 seconds or less.
-            cups = board.P1Cups if self.num == 1 else board.P2Cups
-            val, move = self.minimaxMove(board, self.ply)
-            # print "custom player using minimax, chose to move {} marbles from {} with val {}".format(cups[move-1], move, val)
+            val, move = self.alphaBetaMove(board, self.ply)
             return move
         else:
             print "Unknown player type"
@@ -248,14 +243,72 @@ class arb495(Player):
     """ Defines a player that knows how to evaluate a Mancala gameboard
         intelligently """
 
+    def __init__(self, playerNum, playerType, ply=0):
+        """Initialize a Player with a playerNum (1 or 2), playerType (one of
+        the constants such as HUMAN), and a ply (default is 0)."""
+        from MancalaBoard import *
+        self.prev_board = MancalaBoard()
+        self.num = playerNum
+        self.opp = 2 - playerNum + 1
+        self.type = playerType
+        self.ply = ply
+
     def custom_score(self, alg_ch):
 
         def score_func(board):
+            if board.hasWon(self.num):
+                return INFINITY
+            elif board.hasWon(self.opp):
+                return -INFINITY
+
+            # mancala count from previous board
+            opp_prev_mancala = self.prev_board.scoreCups[1] if self.num == 1 else self.prev_board.scoreCups[0]
+            my_prev_mancala = self.prev_board.scoreCups[0] if self.num == 1 else self.prev_board.scoreCups[1]
+
+            # mancala count from possible move
+            opp_new_mancala = board.scoreCups[1] if self.num == 1 else board.scoreCups[0]
+            my_new_mancala = board.scoreCups[0] if self.num == 1 else board.scoreCups[1]
+
+            # cups from previous board
+            opp_prev_cups = self.prev_board.P2Cups if self.num == 1 else self.prev_board.P1Cups
+            my_prev_cups = self.prev_board.P1Cups if self.num == 1 else self.prev_board.P2Cups
+
+            # cups from possible move
+            opp_new_cups = board.P2Cups if self.num == 1 else board.P1Cups
+            my_new_cups = board.P1Cups if self.num == 1 else board.P2Cups
+
+            # gain in my mancala
+            my_mancala_gain = my_new_mancala - my_prev_mancala
+            # gain in opponent's mancala
+            opp_mancala_gain = opp_new_mancala - opp_prev_mancala
+            # gain in my cups
+            my_cup_gain = sum(my_new_cups) - sum(my_prev_cups)
+            # gain in opponent's cups
+            opp_cup_gain = sum(opp_new_cups) - sum(opp_prev_cups)
+
             score = 0
             attributes = []
-            attributes += board.scoreCups
-            attributes += board.P1Cups
-            attributes += board.P2Cups
+            attributes.append(my_mancala_gain)
+            attributes.append(opp_mancala_gain)
+            attributes.append(my_cup_gain)
+            attributes.append(opp_cup_gain)
+            # print "Score cups: {}".format(board.scoreCups)
+            # rocks on my side
+            attributes.append(sum(board.P1Cups))
+            # print "My rocks: {}".format(sum(board.P1Cups))
+            # rocks on enemy's side
+            attributes.append(sum(board.P2Cups))
+            # print "Your rocks: {}".format(sum(board.P2Cups))
+            # distances from the mancala--probably want to minimize this. 1 num
+            # attributes += [((6 - i) - marbles) for marbles, i in enumerate(board.P1Cups)]
+            # distances from the mancala--probably want to maximize this. 1 num
+            # attributes += [((6 - i) - marbles) for marbles, i in enumerate(board.P2Cups)]
+            # number of empty cups. 1 num
+            attributes.append(len([cup for cup in board.P1Cups if cup == 0]))
+            # print "My empty cups: {}".format(len([cup for cup in board.P1Cups if cup == 0]))
+            # number of enemy's empty cups. 1 num
+            # attributes.append(len([cup for cup in board.P2Cups if cup == 0]))
+            # print "Your empty cups: {}".format(len([cup for cup in board.P2Cups if cup == 0]))
 
             operands = attributes
 
@@ -274,6 +327,8 @@ class arb495(Player):
             except Exception as e:
                 raise e
 
+            print "Decided on a score of {}".format(score)
+
             return score
 
         return score_func
@@ -290,44 +345,9 @@ class arb495(Player):
 
         score = 0.0
 
-        if self.num == 1:
-          cups = board.P1Cups
-          oppCups = board.P2Cups
-          scoreCup = board.scoreCups[0]
-          oppScoreCup = board.scoreCups[1]
-        else:
-          cups = board.P2Cups
-          oppCups = board.P2Cups
-          scoreCup = board.scoreCups[1]
-          oppScoreCup = board.scoreCups[0]
-
-        # iterate over our cups
-        for i, marbles in enumerate(cups):
-          # how far this move will take us
-          endCup = i + marbles % 14
-          # the distance between current cup and our mancala
-          distanceToMancala = board.NCUPS - endCup
-          if distanceToMancala == 0:
-            # favor extras
-            score += Constants.EXTRA_SCORE
-          elif distanceToMancala > 0:
-            # favor non-overflows
-            score += Constants.NON_OVERFLOW_SCORE
-          elif marbles == 0:
-            # empty pits are good
-            score += Constants.EMPTY_SCORE
-          else:
-            # don't favor overflows
-            score += Constants.OVERFLOW_SCORE
-
-        # iterate over opponent's cups
-        for i, marbles in enumerate(oppCups):
-          # punish leaving captures open
-          if marbles == 0 and cups[1] > 0:
-            score += Constants.CAPTURE_SCORE
-
-        score += Constants.MANCALA_SCORE + Constants.OPP_MANCALA_SCORE
-
-        # print "arb495 gave a board score of {}".format(score)
-
         return score
+
+    def chooseMove(self, board):
+        val, move = self.alphaBetaMove(board, self.ply)
+        self.prev_board = board
+        return move

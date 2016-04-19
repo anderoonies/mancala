@@ -1,4 +1,5 @@
 from GeneticAlgorithmTrainer import *
+from MancalaBoard import *
 
 # w1 = WeightChromosome(4, 10)
 # o1 = OperatorChromosome(3)
@@ -15,5 +16,7 @@ from GeneticAlgorithmTrainer import *
 
 population = GeneticAlgorithm(TrainHeuristic()).run(100)
 
+print "RESULTS:"
+
 for alg_chromo in population:
-    print alg_chromo
+    print "{} - {}".format(alg_chromo, TrainHeuristic().fitness(alg_chromo))
