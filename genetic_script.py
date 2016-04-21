@@ -19,4 +19,4 @@ population = GeneticAlgorithm(TrainHeuristic()).run(100)
 print "RESULTS:"
 
 for alg_chromo in population:
-    print "{} - {}".format(alg_chromo, TrainHeuristic().fitness(alg_chromo))
+    print "{0} - {1}".format(alg_chromo, TrainHeuristic().fitness(alg_chromo))

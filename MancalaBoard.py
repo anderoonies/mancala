@@ -166,9 +166,9 @@ class MancalaBoard:
             currPlayer = waitPlayer
             waitPlayer = temp
 
-        if self.hasWon(currPlayer.num):
-            print "Player", currPlayer, " wins!"
-        elif self.hasWon(waitPlayer.num):
-            print "Player", waitPlayer, " wins!"
-        else:
-            print "Tie Game"
+        # if self.hasWon(currPlayer.num):
+        #     print "Player", currPlayer, " wins!"
+        # elif self.hasWon(waitPlayer.num):
+        #     print "Player", waitPlayer, " wins!"
+        # else:
+        #     print "Tie Game"

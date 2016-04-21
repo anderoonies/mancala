@@ -152,7 +152,6 @@ class Player:
             # check opponent's next move
             m_score = opponent.minAlphaBetaValue(next_board, ply - 1, turn, alpha, beta)
             if m_score > score:
-                print "Chose move with score {} over {}".format(m_score, score)
                 # update current move if it's favorable
                 move = m
                 score = m_score
@@ -257,9 +256,12 @@ class arb495(Player):
 
         def score_func(board):
             if board.hasWon(self.num):
-                return INFINITY
+                return 1000
             elif board.hasWon(self.opp):
-                return -INFINITY
+                return -1000
+
+            opp_cups = board.P2Cups if self.num == 1 else board.P1Cups
+            my_cups = board.P1Cups if self.num == 1 else board.P2Cups
 
             # mancala count from previous board
             opp_prev_mancala = self.prev_board.scoreCups[1] if self.num == 1 else self.prev_board.scoreCups[0]
@@ -274,8 +276,8 @@ class arb495(Player):
             my_prev_cups = self.prev_board.P1Cups if self.num == 1 else self.prev_board.P2Cups
 
             # cups from possible move
-            opp_new_cups = board.P2Cups if self.num == 1 else board.P1Cups
-            my_new_cups = board.P1Cups if self.num == 1 else board.P2Cups
+            opp_new_cups = opp_cups
+            my_new_cups = my_cups
 
             # gain in my mancala
             my_mancala_gain = my_new_mancala - my_prev_mancala
@@ -286,29 +288,20 @@ class arb495(Player):
             # gain in opponent's cups
             opp_cup_gain = sum(opp_new_cups) - sum(opp_prev_cups)
 
+            potential_good_captures = sum([cup for i, cup in enumerate(opp_cups) if my_cups[i] == 0])
+            potential_captures = sum([cup for i, cup in enumerate(my_cups) if opp_cups[i] == 0])
+
             score = 0
             attributes = []
             attributes.append(my_mancala_gain)
             attributes.append(opp_mancala_gain)
             attributes.append(my_cup_gain)
             attributes.append(opp_cup_gain)
-            # print "Score cups: {}".format(board.scoreCups)
-            # rocks on my side
             attributes.append(sum(board.P1Cups))
-            # print "My rocks: {}".format(sum(board.P1Cups))
-            # rocks on enemy's side
             attributes.append(sum(board.P2Cups))
-            # print "Your rocks: {}".format(sum(board.P2Cups))
-            # distances from the mancala--probably want to minimize this. 1 num
-            # attributes += [((6 - i) - marbles) for marbles, i in enumerate(board.P1Cups)]
-            # distances from the mancala--probably want to maximize this. 1 num
-            # attributes += [((6 - i) - marbles) for marbles, i in enumerate(board.P2Cups)]
-            # number of empty cups. 1 num
             attributes.append(len([cup for cup in board.P1Cups if cup == 0]))
-            # print "My empty cups: {}".format(len([cup for cup in board.P1Cups if cup == 0]))
-            # number of enemy's empty cups. 1 num
-            # attributes.append(len([cup for cup in board.P2Cups if cup == 0]))
-            # print "Your empty cups: {}".format(len([cup for cup in board.P2Cups if cup == 0]))
+            attributes.append(potential_captures)
+            attributes.append(potential_good_captures)
 
             operands = attributes
 
@@ -327,23 +320,77 @@ class arb495(Player):
             except Exception as e:
                 raise e
 
-            print "Decided on a score of {}".format(score)
-
             return score
 
         return score_func
 
     def score(self, board):
         """ Evaluate the Mancala board for this player """
-        # print "Calling score in arb495"
 
-        # return self.custom_score(board, weights, operations)
         if board.hasWon(self.num):
-          return 100.0
+            return 1000
         elif board.hasWon(self.opp):
-          return 0.0
+            return -1000
 
-        score = 0.0
+        opp_cups = board.P2Cups if self.num == 1 else board.P1Cups
+        my_cups = board.P1Cups if self.num == 1 else board.P2Cups
+
+        # mancala count from previous board
+        opp_prev_mancala = self.prev_board.scoreCups[1] if self.num == 1 else self.prev_board.scoreCups[0]
+        my_prev_mancala = self.prev_board.scoreCups[0] if self.num == 1 else self.prev_board.scoreCups[1]
+
+        # mancala count from possible move
+        opp_new_mancala = board.scoreCups[1] if self.num == 1 else board.scoreCups[0]
+        my_new_mancala = board.scoreCups[0] if self.num == 1 else board.scoreCups[1]
+
+        # cups from previous board
+        opp_prev_cups = self.prev_board.P2Cups if self.num == 1 else self.prev_board.P1Cups
+        my_prev_cups = self.prev_board.P1Cups if self.num == 1 else self.prev_board.P2Cups
+
+        # cups from possible move
+        opp_new_cups = opp_cups
+        my_new_cups = my_cups
+
+        # gain in my mancala
+        my_mancala_gain = my_new_mancala - my_prev_mancala
+        # gain in opponent's mancala
+        opp_mancala_gain = opp_new_mancala - opp_prev_mancala
+        # gain in my cups
+        my_cup_gain = sum(my_new_cups) - sum(my_prev_cups)
+        # gain in opponent's cups
+        opp_cup_gain = sum(opp_new_cups) - sum(opp_prev_cups)
+
+        potential_good_captures = sum([cup for i, cup in enumerate(opp_cups) if my_cups[i] == 0])
+        potential_captures = sum([cup for i, cup in enumerate(my_cups) if opp_cups[i] == 0])
+
+        score = 0
+        attributes = []
+        attributes.append(my_mancala_gain)
+        attributes.append(opp_mancala_gain)
+        attributes.append(my_cup_gain)
+        attributes.append(opp_cup_gain)
+        attributes.append(sum(board.P1Cups))
+        attributes.append(sum(board.P2Cups))
+        attributes.append(len([cup for cup in board.P1Cups if cup == 0]))
+        attributes.append(potential_captures)
+        attributes.append(potential_good_captures)
+
+        operands = attributes
+
+        weight_ch = [9.2895948465511253, -5.5518479301435502, 3.7198795657176493, -4.994530957107699, 2.9397499989367311, 0.067329476348763961, -5.7550748932949647, 3.0386549697777028, 4.4171703527080091]
+        op_ch = ['+', '-', '+', '-', '-', '-', '-', '+']
+
+        for i in xrange(len(attributes)):
+            attributes[i] *= weight_ch[i]
+
+        iters = [iter(attributes), iter(op_ch)]
+        expression = list(it.next() for it in itertools.cycle(iters))
+        string_expression = ' '.join(str(x) for x in expression)
+
+        try:
+            score = eval(string_expression)
+        except Exception as e:
+            raise e
 
         return score
 

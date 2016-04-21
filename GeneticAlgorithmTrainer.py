@@ -111,9 +111,9 @@ class GeneticAlgorithm(object):
         population = self.genetics.initial()
         n = 0
         while n < n_iterations:
-            print "Population interation {}".format(n)
+            print "Population interation {0}".format(n)
             n += 1
-            fits_pop = [(self.genetics.fitness(population[i], population[i+1]), population[i]) for i in xrange(len(population) - 1)]
+            fits_pop = [(self.genetics.fitness(alg_chromo, population), alg_chromo) for alg_chromo in population]
             if self.genetics.check_stop(fits_pop): break
             population = self.next(fits_pop)
         return population
@@ -202,48 +202,43 @@ class TrainHeuristic(GeneticFunctions):
 
     def initial(self):
         return [AlgorithmChromosome(
-                    (WeightChromosome(7, 10)),
-                    OperatorChromosome(6)
+                    (WeightChromosome(9, 10)),
+                    OperatorChromosome(8)
                 ) for i in xrange(self.size)]
 
-    def fitness(self, p1_chromo, p2_chromo = None, ngames = 50):
+    def fitness(self, p1_chromo, population):
         player1 = arb495(1, Player.ABPRUNE, 2)
         player1.score = player1.custom_score(p1_chromo)
+        player2 = arb495(2, Player.ABPRUNE, 2)
 
-        if p2_chromo:
-            player2 = arb495(2, Player.ABPRUNE, 2)
-            player2.score = player2.custom_score(p2_chromo)
-        else:
-            player2 = Player(2, Player.RANDOM)
-
-        # play some games!
         board = MancalaBoard()
-        wins = 0.0
-        n = 0
-        while n < ngames:
-            n += 1
 
+        wins = 0.0
+
+        for p2_chromo in population:
+            player2.score = player2.custom_score(p2_chromo)
+
+            # play some games!
             board.hostGame(player1, player2)
             if board.hasWon(1):
                 wins += 1.0
             board.reset()
 
-        return wins/ngames
+        return wins/len(population)
 
     def check_stop(self, fits_populations):
         self.counter += 1
-        if self.counter % 10 == 0:
-            best_match = list(sorted(fits_populations))[-1][1]
-            fits = [f for f, ch in fits_populations]
-            best = max(fits)
-            worst = min(fits)
-            ave = sum(fits) / len(fits)
-            print(
-                "[G {}] score=({}, {}, {}): {}".format(
-                    self.counter, best, ave, worst, best_match)
-                )
-            pass
-        return self.counter >= self.limit
+        best_match = list(sorted(fits_populations))[-1][1]
+        fits = [f for f, ch in fits_populations]
+        best = max(fits)
+        worst = min(fits)
+        ave = sum(fits) / len(fits)
+        print(
+            "[G {0}] score=({1}, {2}, {3}): {4}".format(
+                self.counter, best, ave, worst, best_match)
+            )
+        pass
+        return best_match > 8.0 and ave > 5.0
 
     def parents(self, fits_populations):
         while True:
